@@ -68,7 +68,6 @@ const data = {
         {
           title: 'Pesanan Saya',
           url: '/orders',
-          isActive: true,
         },
         {
           title: 'Riwayat Transaksi',
@@ -174,10 +173,12 @@ const data = {
     },
   ],
 }
+
+const pathPosition = computed(() => useRoute().fullPath)
 </script>
 
 <template>
-  <Sidebar v-bind="props">
+  <Sidebar v-bind="props" class="bg-white">
     <SidebarHeader>
       <SidebarMenu>
         <SidebarMenuItem>
@@ -221,7 +222,7 @@ const data = {
             </SidebarMenuButton>
             <SidebarMenuSub v-if="item?.items?.length">
               <SidebarMenuSubItem v-for="childItem in item?.items" :key="childItem?.title">
-                <SidebarMenuSubButton as-child :is-active="childItem?.isActive">
+                <SidebarMenuSubButton as-child :is-active="childItem?.url === pathPosition">
                   <NuxtLink :to="childItem?.url">{{ childItem?.title }}</NuxtLink>
                 </SidebarMenuSubButton>
               </SidebarMenuSubItem>
