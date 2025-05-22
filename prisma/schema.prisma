@@ -1,0 +1,244 @@
+// schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      Role     @default(USER) // Hanya ADMIN dan USER
+  balance   Float    @default(0) // Saldo user untuk seller mode
+  profile   Profile?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Sebagai buyer
+  buyerOrders       Order[]       @relation("BuyerOrders")
+  buyerTransactions Transaction[] @relation("BuyerTransactions")
+  buyerChats        Chat[]        @relation("BuyerChats")
+
+  // Sebagai seller
+  sellerOrders       Order[]       @relation("SellerOrders")
+  sellerTransactions Transaction[] @relation("SellerTransactions")
+  sellerChats        Chat[]        @relation("SellerChats")
+  products           Product[]
+  withdrawals        Withdrawal[]
+
+  // Messages
+  sentMessages Message[]      @relation("SentMessages")
+  RefreshToken RefreshToken[]
+}
+
+model RefreshToken {
+  id            Int      @id @default(autoincrement())
+  user_id       Int
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  refresh_token String   @unique @db.VarChar(300)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+}
+
+model Profile {
+  id          Int     @id @default(autoincrement())
+  userId      Int     @unique
+  name        String
+  phone       String
+  address     String
+  bankName    String? // Informasi bank untuk withdrawal (seller mode)
+  bankAccount String? // Nomor rekening
+  bankHolder  String? // Nama pemilik rekening
+
+  // Seller profile info
+  sellerDescription String? // Deskripsi sebagai seller
+  sellerRating      Float?  @default(0) // Rating sebagai seller
+  sellerReviews     Int     @default(0) // Jumlah review
+  isSellerActive    Boolean @default(false) // Apakah aktif sebagai seller
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Product {
+  id          Int            @id @default(autoincrement())
+  sellerId    Int
+  name        String
+  description String
+  price       Float
+  stock       Int
+  status      ProductStatus  @default(ACTIVE)
+  category    String? // Kategori produk
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  seller      User           @relation(fields: [sellerId], references: [id])
+  orderItems  OrderItem[]
+  images      ProductImage[]
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  imageUrl  String // URL gambar produk
+  isCover   Boolean  @default(false) // Menandakan apakah ini adalah cover image
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Order {
+  id             Int         @id @default(autoincrement())
+  buyerId        Int
+  sellerId       Int
+  amount         Float // Total harga order
+  adminFee       Float       @default(0) // Biaya admin/platform
+  sellerAmount   Float // Jumlah yang diterima seller (amount - adminFee)
+  description    String? // Deskripsi order
+  status         OrderStatus @default(PENDING)
+  paymentLink    String? // Link pembayaran (jika menggunakan payment gateway)
+  trackingNumber String? // Nomor resi pengiriman (jika fisik)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  buyer  User @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller User @relation("SellerOrders", fields: [sellerId], references: [id])
+
+  transaction Transaction?
+  orderItems  OrderItem[]
+  chats       Chat[]
+  orderLogs   OrderLog[] // Log perubahan status order
+}
+
+model OrderItem {
+  id        Int   @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  quantity  Int
+  price     Float
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+model OrderLog {
+  id          Int         @id @default(autoincrement())
+  orderId     Int
+  status      OrderStatus
+  description String?
+  createdAt   DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Transaction {
+  id            Int             @id @default(autoincrement())
+  orderId       Int             @unique // Setiap order hanya punya satu transaksi
+  buyerId       Int
+  sellerId      Int
+  status        PaymentStatus   @default(PENDING)
+  type          TransactionType
+  amount        Float // Jumlah transaksi
+  adminFee      Float           @default(0) // Biaya admin
+  netAmount     Float // Jumlah bersih (setelah fee)
+  paymentMethod String?
+  paymentId     String? // ID dari payment gateway
+  notes         String? // Catatan transaksi
+  paymentDate   DateTime? // Tanggal pembayaran berhasil
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  order  Order @relation(fields: [orderId], references: [id])
+  buyer  User  @relation("BuyerTransactions", fields: [buyerId], references: [id])
+  seller User  @relation("SellerTransactions", fields: [sellerId], references: [id])
+}
+
+model Withdrawal {
+  id          Int              @id @default(autoincrement())
+  userId      Int
+  amount      Float
+  status      WithdrawalStatus @default(PENDING)
+  bankName    String
+  bankAccount String
+  bankHolder  String
+  notes       String?
+  processedAt DateTime? // Waktu diproses
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Chat {
+  id        Int      @id @default(autoincrement())
+  orderId   Int // Menyimpan ID order yang terkait dengan percakapan
+  buyerId   Int
+  sellerId  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order    Order     @relation(fields: [orderId], references: [id])
+  buyer    User      @relation("BuyerChats", fields: [buyerId], references: [id])
+  seller   User      @relation("SellerChats", fields: [sellerId], references: [id])
+  messages Message[]
+}
+
+model Message {
+  id       Int      @id @default(autoincrement())
+  chatId   Int
+  senderId Int
+  content  String
+  isRead   Boolean  @default(false)
+  sentAt   DateTime @default(now())
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation("SentMessages", fields: [senderId], references: [id])
+}
+
+enum Role {
+  ADMIN // Hanya untuk admin/pemilik aplikasi
+  USER // User biasa yang bisa jadi buyer atau seller
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  SOLD
+  DELETED
+}
+
+enum OrderStatus {
+  PENDING // Menunggu pembayaran
+  PAID // Pembayaran diterima, dana di escrow
+  PROCESSING // Seller sedang mengerjakan/memproses
+  SHIPPED // Barang dikirim (untuk produk fisik)
+  COMPLETED // Order selesai, dana ditransfer ke seller
+  CANCELLED // Order dibatalkan
+  REFUNDED // Dana dikembalikan ke buyer
+  DISPUTED // Terjadi sengketa/dispute
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+enum TransactionType {
+  PAYMENT // Pembayaran dari buyer ke escrow
+  DISBURSEMENT // Pencairan dana dari escrow ke seller
+  REFUND // Pengembalian dana ke buyer
+  WITHDRAWAL // Penarikan dana seller ke rekening bank
+  DEPOSIT // Setoran dana
+  FEE // Biaya platform
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
