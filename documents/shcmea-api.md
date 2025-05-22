@@ -174,4 +174,75 @@
 ### Withdrawal Management
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `G
+| `GET` | `/api/admin/withdrawals` | All withdrawal requests |
+| `POST` | `/api/admin/withdrawals/{id}/approve` | Approve withdrawal |
+| `POST` | `/api/admin/withdrawals/{id}/reject` | Reject withdrawal |
+
+### Reports
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/admin/reports/sales` | Sales report |
+| `GET` | `/api/admin/reports/users` | User activity report |
+| `GET` | `/api/admin/reports/revenue` | Revenue report |
+
+---
+
+## 8. Utilities & Helpers
+
+### File Upload
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/upload/image` | Upload single image |
+| `POST` | `/api/upload/images` | Upload multiple images |
+
+### Notifications
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/notifications` | User notifications |
+| `PUT` | `/api/notifications/{id}/read` | Mark notification as read |
+| `PUT` | `/api/notifications/read-all` | Mark all as read |
+
+### System Info
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/system/status` | System health check |
+| `GET` | `/api/system/categories` | Available categories |
+| `GET` | `/api/system/fees` | Platform fees info |
+
+---
+
+## Application Flow
+
+### 1. Onboarding Flow
+1. `POST /api/auth/register` - Register user baru
+2. `POST /api/auth/login` - Login user
+3. `PUT /api/auth/me/profile` - Complete profile
+
+### 2. Buyer Flow
+1. `GET /api/products` - Browse products
+2. `POST /api/orders/checkout` - Create order
+3. `POST /api/payments/create` - Process payment
+4. `GET /api/chats/{orderId}` - Communicate with seller
+5. `POST /api/orders/{id}/confirm` - Confirm order received
+
+### 3. Seller Flow
+1. `POST /api/auth/me/seller/activate` - Activate seller mode
+2. `POST /api/seller/products` - Add products
+3. `GET /api/seller/orders` - Manage incoming orders
+4. `POST /api/seller/orders/{id}/ship` - Ship orders
+5. `POST /api/withdrawals/request` - Request withdrawal
+
+### 4. Admin Flow
+1. `GET /api/admin/dashboard` - Monitor platform
+2. `GET /api/admin/withdrawals` - Review withdrawal requests
+3. `POST /api/admin/withdrawals/{id}/approve` - Approve withdrawals
+
+---
+
+## Authentication & Authorization
+
+- **Public endpoints**: Product browsing, system info
+- **User endpoints**: Require valid JWT token
+- **Seller endpoints**: Require seller activation
+- **Admin endpoints**: Require admin role
+- **Webhook endpoints**: Require signature validation
